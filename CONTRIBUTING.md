@@ -3,8 +3,10 @@
 [![贡献者](https://img.shields.io/github/contributors/eframework-org/GO.UTIL)](https://github.com/eframework-org/GO.UTIL/graphs/contributors)
 [![月度提交](https://img.shields.io/github/commit-activity/m/eframework-org/GO.UTIL)](https://github.com/eframework-org/GO.UTIL/graphs/commit-activity)
 [![最后提交](https://img.shields.io/github/last-commit/eframework-org/GO.UTIL)](https://github.com/eframework-org/GO.UTIL/commits/master)
+
 [![活跃议题](https://img.shields.io/github/issues/eframework-org/GO.UTIL)](https://github.com/eframework-org/GO.UTIL/issues)
 [![单元测试](https://github.com/eframework-org/GO.UTIL/actions/workflows/test.yml/badge.svg)](https://github.com/eframework-org/GO.UTIL/actions/workflows/test.yml)
+[![版本发布](https://github.com/eframework-org/GO.UTIL/actions/workflows/publish.yml/badge.svg)](https://github.com/eframework-org/GO.UTIL/actions/workflows/publish.yml)
 
 感谢您考虑为本项目做出贡献！
 
