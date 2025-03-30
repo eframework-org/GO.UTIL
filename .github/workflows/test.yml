@@ -12,7 +12,7 @@ on:
         description: '目标平台：windows-latest, ubuntu-latest, macos-latest'
         required: false
         type: string
-        default: '["windows-latest, ubuntu-latest, macos-latest"]'
+        default: '["windows-latest", "ubuntu-latest", "macos-latest"]'
   workflow_call:
     outputs:
       test_passed:
