@@ -14,6 +14,17 @@ on:
         type: string
         default: '["windows-latest", "ubuntu-latest", "macos-latest"]'
   workflow_call:
+    inputs:
+      go_versions:
+        description: 'Go 版本：https://go.dev/dl'
+        required: false
+        type: string
+        default: '["1.21", "1.22", "1.23", "1.24"]'
+      target_platforms:
+        description: '目标平台：windows-latest, ubuntu-latest, macos-latest'
+        required: false
+        type: string
+        default: '["windows-latest", "ubuntu-latest", "macos-latest"]'
     outputs:
       test_passed:
         description: "测试是否通过"
