@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   test:
-    name: 测试 ${{ matrix.os }}.${{ matrix.go }} 环境
+    name: 测试 ${{ matrix.go }}.${{ matrix.os }} 环境
     runs-on: ${{ matrix.os }}
     env:
       TZ: 'Asia/Shanghai'
@@ -79,6 +79,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test#${{ github.run_number }}.${{ matrix.os }}.${{ matrix.go }}.reports
+          name: test#${{ github.run_number }}.${{ matrix.go }}.${{ matrix.os }}.reports
           path: test-reports
           retention-days: 14
