@@ -56,7 +56,7 @@ func TestTagStr(t *testing.T) {
 	tag.Set("key1", "value1")
 	tag.Set("key2", "value2")
 
-	expected := "[Tags: key1 = value1, key2 = value2]"
+	expected := "[key1 = value1, key2 = value2]"
 	if tag.Text() != expected {
 		t.Errorf("Expected %s, got %s", expected, tag.Text())
 	}

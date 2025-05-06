@@ -227,7 +227,7 @@ func setup(prefs XPrefs.IBase) {
 				}
 				return
 			case <-quit.GetQuitChannel():
-				fmt.Println("XLog.Listen: receive signal of QUIT.")
+				fmt.Println("XLog.Listen: receive signal of quit.")
 				return
 			}
 		}
@@ -241,10 +241,8 @@ func Flush() {
 	if initSig != nil && closed == 0 {
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
-		select {
-		case flushSig <- wg:
-			wg.Wait()
-		}
+		flushSig <- wg
+		wg.Wait()
 		Notice("XLog.Flush: logger has been flushed.")
 	}
 }

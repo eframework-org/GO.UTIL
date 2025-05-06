@@ -436,7 +436,7 @@ func (apt *fileAdapter) doRotate(logTime time.Time) error {
 
 	// return error if the last file checked still existed
 	if err == nil {
-		return fmt.Errorf("Rotate: Cannot find free log number to rename %s", apt.path)
+		return fmt.Errorf("rotate error: cannot find free log number to rename %s", apt.path)
 	}
 
 	// close fileWriter before rename
@@ -454,10 +454,10 @@ RESTART_LOGGER:
 	go apt.deleteOld()
 
 	if startLoggerErr != nil {
-		return fmt.Errorf("Rotate StartLogger: %s", startLoggerErr)
+		return fmt.Errorf("rotate start error: %s", startLoggerErr)
 	}
 	if err != nil {
-		return fmt.Errorf("Rotate: %s", err)
+		return fmt.Errorf("rotate error: %s", err)
 	}
 	return nil
 }
@@ -478,11 +478,11 @@ func (apt *fileAdapter) deleteOld() {
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) (returnErr error) {
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Fprintf(os.Stderr, "Unable to delete old log '%s', error: %v\n", path, r)
+				fmt.Fprintf(os.Stderr, "unable to delete old log '%s', error: %v\n", path, r)
 			}
 		}()
 
-		if info == nil {
+		if info == nil || err != nil {
 			return
 		}
 

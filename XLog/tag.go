@@ -100,7 +100,7 @@ func (tg *LogTag) Get(key string) string {
 }
 
 // Text 返回日志标签的文本表示。
-// 格式为 "[Tags: key1 = value1, key2 = value2, ...]"。
+// 格式为 "[key1 = value1, key2 = value2, ...]"。
 // 如果没有标签，则返回空字符串。
 // 使用缓存机制，仅在标签内容变更时重建文本。
 func (tg *LogTag) Text() string {
@@ -113,7 +113,7 @@ func (tg *LogTag) Text() string {
 		tg.rebuildText = false
 		if tg.count > 0 {
 			var builder strings.Builder
-			builder.WriteString("[Tags: ")
+			builder.WriteString("[")
 			first := true
 			for i := range tg.count {
 				if !first {
@@ -160,10 +160,11 @@ func (tg *LogTag) Clone() *LogTag {
 
 	ntag := GetTag()
 	if tg.count > 0 {
-		for i := 0; i < tg.count; i++ {
+		for i := range tg.count {
 			ntag.Set(tg.key[i], tg.value[i])
 		}
 	}
+	ntag.level = tg.level
 
 	return ntag
 }
