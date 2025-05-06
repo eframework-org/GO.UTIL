@@ -1,6 +1,6 @@
 module github.com/eframework-org/GO.UTIL
 
-go 1.24
+go 1.23
 
 require github.com/shiena/ansicolor v0.0.0-20230509054315-a9deabde6e02
 
