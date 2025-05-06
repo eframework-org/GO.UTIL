@@ -72,7 +72,7 @@ func Run(app IBase) {
 					}
 					return
 				case <-quit.GetQuitChannel():
-					XLog.Notice("XApp.Listen: receive signal of QUIT.")
+					XLog.Notice("XApp.Listen: receive signal of quit.")
 					return
 				}
 			}

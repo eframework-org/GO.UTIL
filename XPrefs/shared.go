@@ -114,7 +114,7 @@ func setup() {
 				}
 				return
 			case <-quit.GetQuitChannel():
-				fmt.Println("XPrefs.Listen: receive signal of QUIT.")
+				fmt.Println("XPrefs.Listen: receive signal of quit.")
 				return
 			}
 		}
