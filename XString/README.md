@@ -3,6 +3,7 @@
 [![Reference](https://pkg.go.dev/badge/github.com/eframework-org/GO.UTIL/XString.svg)](https://pkg.go.dev/github.com/eframework-org/GO.UTIL/XString)
 [![Release](https://img.shields.io/github/v/tag/eframework-org/GO.UTIL)](https://github.com/eframework-org/GO.UTIL/tags)
 [![Report](https://goreportcard.com/badge/github.com/eframework-org/GO.UTIL)](https://goreportcard.com/report/github.com/eframework-org/GO.UTIL)
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-Explore-blue)](https://deepwiki.com/eframework-org/GO.UTIL)
 
 XString 提供了高效的字符串处理工具，支持转换、操作、求值和加密等功能。
 

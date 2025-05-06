@@ -3,6 +3,7 @@
 [![Reference](https://pkg.go.dev/badge/github.com/eframework-org/GO.UTIL.svg)](https://pkg.go.dev/github.com/eframework-org/GO.UTIL)
 [![Release](https://img.shields.io/github/v/tag/eframework-org/GO.UTIL)](https://github.com/eframework-org/GO.UTIL/tags)
 [![Report](https://goreportcard.com/badge/github.com/eframework-org/GO.UTIL)](https://goreportcard.com/report/github.com/eframework-org/GO.UTIL)
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-Explore-blue)](https://deepwiki.com/eframework-org/GO.UTIL)
 
 EFramework Utility for Go 提供了配置管理、任务调度、日志记录、事件系统、文件处理等基础功能模块。
 

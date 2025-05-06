@@ -3,6 +3,7 @@
 [![Reference](https://pkg.go.dev/badge/github.com/eframework-org/GO.UTIL/XObject.svg)](https://pkg.go.dev/github.com/eframework-org/GO.UTIL/XObject)
 [![Release](https://img.shields.io/github/v/tag/eframework-org/GO.UTIL)](https://github.com/eframework-org/GO.UTIL/tags)
 [![Report](https://goreportcard.com/badge/github.com/eframework-org/GO.UTIL)](https://goreportcard.com/report/github.com/eframework-org/GO.UTIL)
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-Explore-blue)](https://deepwiki.com/eframework-org/GO.UTIL)
 
 XObject 提供了 Go 语言面向对象编程的增强支持，包括对象构造、实例管理和序列化功能。
 

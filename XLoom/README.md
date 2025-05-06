@@ -3,6 +3,7 @@
 [![Reference](https://pkg.go.dev/badge/github.com/eframework-org/GO.UTIL/XLoom.svg)](https://pkg.go.dev/github.com/eframework-org/GO.UTIL/XLoom)
 [![Release](https://img.shields.io/github/v/tag/eframework-org/GO.UTIL)](https://github.com/eframework-org/GO.UTIL/tags)
 [![Report](https://goreportcard.com/badge/github.com/eframework-org/GO.UTIL)](https://goreportcard.com/report/github.com/eframework-org/GO.UTIL)
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-Explore-blue)](https://deepwiki.com/eframework-org/GO.UTIL)
 
 XLoom 提供了一个轻量级的任务调度系统，用于管理异步任务、定时器和多线程并发。
 
