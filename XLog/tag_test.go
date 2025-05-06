@@ -56,7 +56,7 @@ func TestTagStr(t *testing.T) {
 	tag.Set("key1", "value1")
 	tag.Set("key2", "value2")
 
-	expected := "[key1 = value1, key2 = value2]"
+	expected := "[key1=value1, key2=value2]"
 	if tag.Text() != expected {
 		t.Errorf("Expected %s, got %s", expected, tag.Text())
 	}
@@ -144,11 +144,11 @@ func TestWatchAndTag(t *testing.T) {
 		}
 	})
 
-	t.Run("MultiThread", func(t *testing.T) {
+	t.Run("Concurrent", func(t *testing.T) {
 		var wg sync.WaitGroup
 		numGoroutines := 10
 
-		for i := 0; i < numGoroutines; i++ {
+		for i := range numGoroutines {
 			wg.Add(1)
 			go func(id int) {
 				defer wg.Done()

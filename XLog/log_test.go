@@ -275,7 +275,7 @@ func TestLogWithTag(t *testing.T) {
 				Debug("Debug message", tag)
 			},
 			cleanup:   func() {},
-			expected:  "[source = test1] Debug message",
+			expected:  "[source=test1] Debug message",
 			shouldLog: true,
 		},
 		{
@@ -293,7 +293,7 @@ func TestLogWithTag(t *testing.T) {
 			cleanup: func() {
 				Defer()
 			},
-			expected:  "[context = test2] Context debug message",
+			expected:  "[context=test2] Context debug message",
 			shouldLog: true,
 		},
 		{
@@ -306,7 +306,7 @@ func TestLogWithTag(t *testing.T) {
 				Info("Multi tag message", tag)
 			},
 			cleanup:   func() {},
-			expected:  "[key1 = value1, key2 = value2] Multi tag message",
+			expected:  "[key1=value1, key2=value2] Multi tag message",
 			shouldLog: true,
 		},
 		{
@@ -318,7 +318,7 @@ func TestLogWithTag(t *testing.T) {
 				Info("Count: %d", tag, 42)
 			},
 			cleanup:   func() {},
-			expected:  "[format = test] Count: 42",
+			expected:  "[format=test] Count: 42",
 			shouldLog: true,
 		},
 	}

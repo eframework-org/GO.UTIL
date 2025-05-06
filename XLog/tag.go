@@ -121,7 +121,7 @@ func (tg *LogTag) Text() string {
 				} else {
 					first = false
 				}
-				builder.WriteString(fmt.Sprintf("%s = %s", tg.key[i], tg.value[i]))
+				builder.WriteString(fmt.Sprintf("%s=%s", tg.key[i], tg.value[i]))
 			}
 			builder.WriteString("]")
 			tg.text = builder.String()
