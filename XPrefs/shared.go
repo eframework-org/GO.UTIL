@@ -17,13 +17,19 @@ import (
 var (
 	// initMu 用于保护初始化过程的互斥锁。
 	initMu sync.Mutex
+
 	// initOnce 确保初始化过程只执行一次的同步控制。
 	initOnce sync.Once
+
+	// initWait 用于等待初始化过程完成的同步控制。
+	initWait sync.WaitGroup
+
 	// initSig 用于接收系统信号的通道。
 	initSig chan os.Signal
 
 	// asset 全局资产配置实例。
 	asset *prefsAsset
+
 	// local 全局本地配置实例。
 	local *prefsLocal
 )
@@ -48,15 +54,19 @@ func reset() {
 	initMu.Lock()
 	defer initMu.Unlock()
 
-	// 重置同步对象
-	initOnce = sync.Once{}
-
 	// 重置信号通道
 	if initSig != nil {
 		signal.Stop(initSig)
 		close(initSig)
 		initSig = nil
 	}
+
+	// 等待退出信号
+	initWait.Wait()
+
+	// 重置同步对象
+	initWait = sync.WaitGroup{}
+	initOnce = sync.Once{}
 
 	// 重置配置实例
 	asset = nil
@@ -94,6 +104,7 @@ func setup() {
 	initSig = make(chan os.Signal, 1)
 	signal.Notify(initSig, syscall.SIGTERM, syscall.SIGINT)
 
+	initWait.Add(1)
 	quit.GetWaiter().Add(1)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -103,6 +114,7 @@ func setup() {
 		defer func() {
 			Local().Save()
 			quit.GetWaiter().Done()
+			initWait.Done()
 		}()
 		for {
 			select {
