@@ -62,7 +62,7 @@ func TestTimer(t *testing.T) {
 		var count int32
 		done := make(chan struct{})
 
-		// 设置一个间隔调用
+		// 设置一个间歇调用
 		id := SetInterval(func() {
 			if atomic.AddInt32(&count, 1) >= 3 {
 				close(done)
@@ -78,7 +78,7 @@ func TestTimer(t *testing.T) {
 			t.Fatal("Interval did not execute enough times")
 		}
 
-		// 清除间隔调用
+		// 清除间歇调用
 		ClearInterval(id, 0)
 	})
 

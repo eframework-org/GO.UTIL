@@ -28,9 +28,9 @@ var (
 type timer struct {
 	id       int    // 定时器唯一标识
 	callback func() // 定时器触发时执行的回调函数
-	period   int    // 定时器周期（毫秒），用于重复执行的间隔时间
+	period   int    // 定时器周期（毫秒），用于重复执行的间歇时间
 	tick     int    // 当前剩余时间（毫秒），倒计时到 0 时触发回调
-	repeat   bool   // 是否重复执行，true 表示间隔调用，false 表示超时调用
+	repeat   bool   // 是否重复执行，true 表示间歇调用，false 表示超时调用
 	panic    bool   // 是否发生异常，用于异常恢复控制
 }
 
@@ -89,7 +89,7 @@ func updateTimer(pid int, delta int) {
 					continue
 				}
 			}
-			if timer.tick <= 0 { // 因存在固定刷新间隔，可能会导致间歇调用的周期越来越长
+			if timer.tick <= 0 { // 因存在固定刷新间歇，可能会导致间歇调用的周期越来越长
 				if timer.callback != nil {
 					timer.panic = true
 					timer.callback()
@@ -173,9 +173,9 @@ func ClearTimeout(id int, loomID ...int) {
 	delTimersLk[lid].Unlock()
 }
 
-// SetInterval 设置一个间隔调用。
+// SetInterval 设置一个间歇调用。
 // callback 为要执行的回调函数。
-// interval 为调用间隔（毫秒）。
+// interval 为调用间歇（毫秒）。
 // loomID 为可选的目标线程 ID，如果未指定，在当前线程中执行。
 // 返回定时器 ID，如果参数无效则返回 -1。
 func SetInterval(callback func(), interval int, loomID ...int) int {
@@ -215,7 +215,7 @@ func SetInterval(callback func(), interval int, loomID ...int) int {
 	return timer.id
 }
 
-// ClearInterval 取消一个间隔调用。
+// ClearInterval 取消一个间歇调用。
 // id 为要取消的定时器 ID。
 // loomID 为可选的目标线程 ID，如果未指定，在当前线程中执行。
 func ClearInterval(id int, loomID ...int) { ClearTimeout(id, loomID...) }

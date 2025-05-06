@@ -5,10 +5,8 @@
 package XLoom
 
 import (
-	"os"
-	"os/signal"
+	"fmt"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/eframework-org/GO.UTIL/XLog"
@@ -16,6 +14,7 @@ import (
 	"github.com/eframework-org/GO.UTIL/XTime"
 	"github.com/illumitacit/gostd/quit"
 	"github.com/petermattis/goid"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -28,19 +27,21 @@ const (
 )
 
 var (
-	initMu     sync.Mutex            // 初始化互斥锁，用于保护初始化过程
-	initSigMap sync.Map              //map[int64]chan os.Signal
-	closeWait  sync.WaitGroup        // 等待所有提交处理器完成
-	loomIDMap  = make(map[int64]int) // 线程映射表，用于存储 goroutine ID 到 loom ID 的映射关系
-	loomIDMu   sync.Mutex            // 线程映射表互斥锁，用于保护映射表的并发访问
-)
-
-var (
-	loomCount int           // 线程总数，表示当前运行的线程数量
-	loomTask  []chan func() // 线程任务队列，每个线程一个独立的任务通道
-	loomPause []bool        // 线程暂停状态，true 表示暂停，false 表示运行
-	loomFps   []int         // 线程刷新帧率统计，记录每个线程的每秒帧数
-	loomQps   []int         // 线程处理速率统计，记录每个线程的每秒处理任务数
+	loomInitMu        sync.Mutex            // 初始化互斥锁，用于保护初始化过程
+	loomPause         []bool                // 线程暂停状态，true 表示暂停，false 表示运行
+	loomPauseSig      []chan bool           // 线程暂停信号，用于通知线程暂停状态的变化
+	loomCloseSig      []chan bool           // 线程退出信号
+	loomCloseWait     sync.WaitGroup        // 等待所有处理器完成
+	loomIDMap         = make(map[int64]int) // 线程映射表，用于存储 goroutine ID 到 loom ID 的映射关系
+	loomIDMu          sync.Mutex            // 线程映射表互斥锁，用于保护映射表的并发访问
+	loomCount         int                   // 线程总数，表示当前运行的线程数量
+	loomTask          []chan func()         // 线程任务队列，每个线程一个独立的任务通道
+	loomFPS           []int                 // 线程刷新帧率统计，记录每个线程的每秒刷新次数
+	loomFPSGauges     []prometheus.Gauge    // 线程刷新帧率度量
+	loomQPS           []int                 // 线程处理速率统计，记录每个线程的每秒处理次数
+	loomQPSGauges     []prometheus.Gauge    // 线程处理速率度量
+	loomQueryCounters []prometheus.Counter  // 线程处理总数度量
+	loomQueryCounter  prometheus.Counter    // 所有线程处理总数度量
 )
 
 func init() { setup(XPrefs.Asset()) }
@@ -52,27 +53,68 @@ func setup(prefs XPrefs.IBase) {
 		return
 	}
 
-	initMu.Lock()
-	defer initMu.Unlock()
+	loomInitMu.Lock()
+	defer loomInitMu.Unlock()
 
 	count := prefs.GetInt(prefsCount, prefsCountDefault)
 	step := prefs.GetInt(prefsStep, prefsStepDefault)
 	queue := prefs.GetInt(prefsQueue, prefsQueueDefault)
 
 	if count <= 0 || step <= 0 || queue <= 0 {
-		XLog.Panic("XLoom.Init: invalid parameters - count: %v, step: %v, queue: %v",
-			count, step, queue)
+		XLog.Panic("XLoom.Init: invalid parameters, count: %v, step: %v, queue: %v.", count, step, queue)
 		return
 	}
 
+	// 关闭所有线程。
+	if len(loomCloseSig) > 0 {
+		for _, ch := range loomCloseSig {
+			ch <- true
+		}
+		loomCloseWait.Wait()
+	}
+	loomCloseWait = sync.WaitGroup{}
+
+	// 注销数据度量。
+	if len(loomFPSGauges) > 0 {
+		for _, gauge := range loomFPSGauges {
+			prometheus.Unregister(gauge)
+		}
+	}
+	if len(loomQPSGauges) > 0 {
+		for _, gauge := range loomQPSGauges {
+			prometheus.Unregister(gauge)
+		}
+	}
+	if len(loomQueryCounters) > 0 {
+		for _, counter := range loomQueryCounters {
+			prometheus.Unregister(counter)
+		}
+	}
+	if loomQueryCounter != nil {
+		prometheus.Unregister(loomQueryCounter)
+	}
+
 	loomCount = count
+
 	loomTask = make([]chan func(), count)
+	loomCloseSig = make([]chan bool, count)
 	loomPause = make([]bool, count)
-	loomFps = make([]int, count)
-	loomQps = make([]int, count)
+	loomPauseSig = make([]chan bool, count)
+	loomFPS = make([]int, count)
+	loomFPSGauges = make([]prometheus.Gauge, count)
+	loomQPS = make([]int, count)
+	loomQPSGauges = make([]prometheus.Gauge, count)
+	loomQueryCounters = make([]prometheus.Counter, count)
+	loomQueryCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "xloom_query_total",
+		Help: "Total number of queries processed by all looms.",
+	})
+	prometheus.MustRegister(loomQueryCounter)
 
 	for i := range count {
 		loomTask[i] = make(chan func(), queue)
+		loomCloseSig[i] = make(chan bool, 1)
+		loomPauseSig[i] = make(chan bool, 1)
 	}
 
 	setupTimer(count)
@@ -80,16 +122,36 @@ func setup(prefs XPrefs.IBase) {
 	wg := sync.WaitGroup{}
 	for i := range count {
 		wg.Add(1)
+
+		// 注册数据度量。
+		loomFPSGauges[i] = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("xloom_fps_%v", i),
+			Help: fmt.Sprintf("Frames per second for loom %v.", i),
+		})
+		prometheus.MustRegister(loomFPSGauges[i])
+
+		loomQPSGauges[i] = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("xloom_qps_%v", i),
+			Help: fmt.Sprintf("Queries per second for loom %v.", i),
+		})
+		prometheus.MustRegister(loomQPSGauges[i])
+
+		loomQueryCounters[i] = prometheus.NewCounter(prometheus.CounterOpts{
+			Name: fmt.Sprintf("xloom_query_total_%v", i),
+			Help: fmt.Sprintf("Total number of queries processed by loom %v.", i),
+		})
+		prometheus.MustRegister(loomQueryCounters[i])
+
 		doneOnce := sync.Once{}
 		RunAsyncT1(func(pid int) {
-			initVal, _ := initSigMap.LoadOrStore(pid, make(chan os.Signal, 1))
-			ch := initVal.(chan os.Signal)
-			signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT)
-			closeWait.Add(1)
+			pauseSig := loomPauseSig[i]
+			closeSig := loomCloseSig[i]
+
+			loomCloseWait.Add(1)
 			quit.GetWaiter().Add(1)
 			defer func() {
 				quit.GetWaiter().Done()
-				closeWait.Done()
+				loomCloseWait.Done()
 			}()
 
 			loomIDMu.Lock()
@@ -114,18 +176,18 @@ func setup(prefs XPrefs.IBase) {
 						// 在暂停状态下重置计数器和指标
 						frameCount = 0
 						queryCount = 0
-						loomFps[pid] = 0
-						loomQps[pid] = 0
+						loomFPS[pid] = 0
+						loomFPSGauges[pid].Set(0)
+						loomQPS[pid] = 0
+						loomQPSGauges[pid].Set(0)
 						lastTime = XTime.GetMillisecond() // 更新时间戳，避免恢复后的突然跳变
-					case sig, ok := <-ch:
-						if ok {
-							XLog.Notice("XLoom.Loop(%v): receive signal of %v.", pid, sig.String())
-						} else {
-							XLog.Notice("XLoom.Loop(%v): channel of signal is closed.", pid)
-						}
+					case val := <-pauseSig:
+						XLog.Notice("XLoom.Loop(%v): receive signal of pause(%v).", pid, val)
+					case <-closeSig:
+						XLog.Notice("XLoom.Loop(%v): receive signal of close.", pid)
 						return
 					case <-quit.GetQuitChannel():
-						XLog.Notice("XLoom.Loop(%v): receive signal of QUIT.", pid)
+						XLog.Notice("XLoom.Loop(%v): receive signal of quit.", pid)
 						return
 					}
 				} else {
@@ -133,10 +195,14 @@ func setup(prefs XPrefs.IBase) {
 					deltaTime := nowTime - lastTime
 
 					if deltaTime >= 1000 {
-						fps := int(float64(frameCount) * 1000 / float64(deltaTime))
-						qps := int(float64(queryCount) * 1000 / float64(deltaTime))
-						loomFps[pid] = fps
-						loomQps[pid] = qps
+						fps := float64(frameCount) * 1000 / float64(deltaTime)
+						ifps := int(fps)
+						qps := float64(queryCount) * 1000 / float64(deltaTime)
+						iqps := int(qps)
+						loomFPS[pid] = ifps
+						loomFPSGauges[pid].Set(fps)
+						loomQPS[pid] = iqps
+						loomQPSGauges[pid].Set(qps)
 						frameCount = 0
 						queryCount = 0
 						lastTime = nowTime
@@ -146,6 +212,8 @@ func setup(prefs XPrefs.IBase) {
 					case runIn, ok := <-loomTask[pid]:
 						if ok {
 							queryCount++
+							loomQueryCounters[pid].Inc()
+							loomQueryCounter.Inc()
 							runIn()
 						} else {
 							XLog.Error("XLoom.Loop(%v): get runin with ret false.", pid)
@@ -153,15 +221,13 @@ func setup(prefs XPrefs.IBase) {
 					case <-updateTicker.C:
 						frameCount++
 						updateTimer(pid, deltaTime)
-					case sig, ok := <-ch:
-						if ok {
-							XLog.Notice("XLoom.Loop(%v): receive signal of %v.", pid, sig.String())
-						} else {
-							XLog.Notice("XLoom.Loop(%v): channel of signal is closed.", pid)
-						}
+					case val := <-pauseSig:
+						XLog.Notice("XLoom.Loop(%v): receive signal of pause(%v).", pid, val)
+					case <-closeSig:
+						XLog.Notice("XLoom.Loop(%v): receive signal of close.", pid)
 						return
 					case <-quit.GetQuitChannel():
-						XLog.Notice("XLoom.Loop(%v): receive signal of QUIT.", pid)
+						XLog.Notice("XLoom.Loop(%v): receive signal of quit.", pid)
 						return
 					}
 				}
@@ -188,9 +254,11 @@ func Pause(loomID ...int) {
 			return
 		}
 		loomPause[lid] = true
+		loomPauseSig[lid] <- true
 	} else {
-		for i := range loomPause {
-			loomPause[i] = true
+		for lid := range loomPause {
+			loomPause[lid] = true
+			loomPauseSig[lid] <- true
 		}
 	}
 }
@@ -205,13 +273,15 @@ func Resume(loomID ...int) {
 			return
 		}
 		if lid >= loomCount {
-			XLog.Critical("XLoom.Resume: loom id of %v can not equals or greater than: %v", lid, Count())
+			XLog.Critical("XLoom.Resume: loom id of %v can not equals or greater than: %v.", lid, Count())
 			return
 		}
 		loomPause[lid] = false
+		loomPauseSig[lid] <- false
 	} else {
-		for i := range loomPause {
-			loomPause[i] = false
+		for lid := range loomPause {
+			loomPause[lid] = false
+			loomPauseSig[lid] <- false
 		}
 	}
 }
@@ -235,14 +305,14 @@ func RunIn(callback func(), loomID ...int) {
 		return
 	}
 	if lid >= loomCount {
-		XLog.Critical("XLoom.RunIn: loom id of %v can not equals or greater than: %v", lid, Count())
+		XLog.Critical("XLoom.RunIn: loom id of %v can not equals or greater than: %v.", lid, Count())
 		return
 	}
 	ch := loomTask[lid]
 	select {
 	case ch <- callback:
 	default:
-		XLog.Critical("XLoom.RunIn: too many runins of %v", lid)
+		XLog.Critical("XLoom.RunIn: too many runins of %v.", lid)
 	}
 }
 
@@ -282,10 +352,10 @@ func FPS(loomID ...int) int {
 		return 0
 	}
 	if lid >= loomCount {
-		XLog.Critical("XLoom.FPS: loom id of %v can not equals or greater than: %v", lid, Count())
+		XLog.Critical("XLoom.FPS: loom id of %v can not equals or greater than: %v.", lid, Count())
 		return 0
 	}
-	return loomFps[lid]
+	return loomFPS[lid]
 }
 
 // QPS 获取指定线程的处理速率。
@@ -303,8 +373,8 @@ func QPS(loomID ...int) int {
 		return 0
 	}
 	if lid >= loomCount {
-		XLog.Critical("XLoom.QPS: loom id of %v can not equals or greater than: %v", lid, Count())
+		XLog.Critical("XLoom.QPS: loom id of %v can not equals or greater than: %v.", lid, Count())
 		return 0
 	}
-	return loomQps[lid]
+	return loomQPS[lid]
 }
