@@ -16,6 +16,7 @@ import (
 // 内部使用分段锁实现，将数据分成多个分片，每个分片有独立的锁，减少锁竞争。
 // 键值存储采用 map 用于快速索引，切片用于遍历优化。
 type Map struct {
+	mutex     sync.Mutex
 	shards    []*mapShard // 存储多个分片
 	shardMask uint32      // 分片索引掩码
 }
@@ -32,16 +33,7 @@ type mapShard struct {
 
 // NewMap 创建并返回一个新的 Map 实例。
 func NewMap() *Map {
-	shardCount := getShardCount()
-	m := &Map{
-		shards:    make([]*mapShard, shardCount),
-		shardMask: uint32(shardCount - 1), // 掩码用于位运算
-	}
-
-	// 初始化每个分片
-	for i := range shardCount {
-		m.shards[i] = &mapShard{}
-	}
+	m := &Map{}
 	return m
 }
 
@@ -61,6 +53,16 @@ func getShardCount() int {
 	n++
 
 	return n
+}
+
+func (m *Map) initShard() {
+	shardCount := getShardCount()
+	m.shards = make([]*mapShard, shardCount)
+	m.shardMask = uint32(shardCount - 1) // 掩码用于位运算
+	// 初始化每个分片
+	for i := range shardCount {
+		m.shards[i] = &mapShard{}
+	}
 }
 
 // 计算键的哈希值，确定应该存储在哪个分片上。
@@ -92,6 +94,10 @@ func (m *Map) getShard(key any) *mapShard {
 // Load 返回指定 key 对应的值。
 // 如果 key 存在，则返回对应的值和 true，否则返回 nil 和 false。
 func (m *Map) Load(key any) (value any, ok bool) {
+	if m.shards == nil {
+		return nil, false
+	}
+
 	shard := m.getShard(key)
 	shard.mutex.RLock()
 	defer shard.mutex.RUnlock()
@@ -108,6 +114,15 @@ func (m *Map) Load(key any) (value any, ok bool) {
 // Store 设置指定 key 的值。
 // 如果 key 已存在，则更新其值否则插入新的键值对。
 func (m *Map) Store(key any, value any) {
+	if m.shards == nil {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+
+		if m.shards == nil {
+			m.initShard()
+		}
+	}
+
 	shard := m.getShard(key)
 	shard.mutex.Lock()
 	defer shard.mutex.Unlock()
@@ -129,6 +144,10 @@ func (m *Map) Store(key any, value any) {
 // Delete 删除指定 key 及其对应的值。
 // 若 key 存在，删除并重排切片，否则不做处理。
 func (m *Map) Delete(key any) {
+	if m.shards == nil {
+		return
+	}
+
 	shard := m.getShard(key)
 	shard.mutex.Lock()
 	defer shard.mutex.Unlock()
@@ -151,6 +170,15 @@ func (m *Map) Delete(key any) {
 // LoadOrStore 返回指定 key 的值，若 key 不存在则写入默认值。
 // 返回实际存储的值和布尔值，指示是否已存在。
 func (m *Map) LoadOrStore(key any, value any) (actual any, loaded bool) {
+	if m.shards == nil {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+
+		if m.shards == nil {
+			m.initShard()
+		}
+	}
+
 	shard := m.getShard(key)
 	shard.mutex.Lock()
 	defer shard.mutex.Unlock()
@@ -174,6 +202,15 @@ func (m *Map) LoadOrStore(key any, value any) (actual any, loaded bool) {
 // LoadAndDelete 返回指定 key 对应的值并将其从映射中删除。
 // 若 key 不存在，返回 nil 和 false。
 func (m *Map) LoadAndDelete(key any) (value any, loaded bool) {
+	if m.shards == nil {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+
+		if m.shards == nil {
+			m.initShard()
+		}
+	}
+
 	shard := m.getShard(key)
 	shard.mutex.Lock()
 	defer shard.mutex.Unlock()
@@ -199,6 +236,10 @@ func (m *Map) LoadAndDelete(key any) (value any, loaded bool) {
 
 // Clear 清除所有键值对。
 func (m *Map) Clear() {
+	if m.shards == nil {
+		return
+	}
+
 	// 清除每个分片
 	for _, shard := range m.shards {
 		shard.mutex.Lock()
@@ -213,9 +254,10 @@ func (m *Map) Clear() {
 // Range 顺序遍历所有键值对，并调用用户提供的 process 函数。
 // 若 process 返回 false，则提前中断遍历。
 func (m *Map) Range(process func(key any, value any) bool) {
-	if process == nil {
+	if m.shards == nil || process == nil {
 		return
 	}
+
 	// 遍历每个分片
 	for _, shard := range m.shards {
 		shard.mutex.RLock()
@@ -231,7 +273,7 @@ func (m *Map) Range(process func(key any, value any) bool) {
 // RangeConcurrent 并发遍历所有键值对，内部根据数据量和 CPU 数量自动确定协程数量。
 // 每个协程处理一个数据分片，如果某个协程中断，其它协程会在下次检测时终止。
 func (m *Map) RangeConcurrent(process func(chunk int, key any, value any) bool, worker ...func(int)) {
-	if process == nil {
+	if m.shards == nil || process == nil {
 		return
 	}
 

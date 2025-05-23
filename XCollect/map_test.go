@@ -14,16 +14,6 @@ import (
 
 // 测试 Map 模块
 func TestMap(t *testing.T) {
-	t.Run("New", func(t *testing.T) {
-		m := NewMap()
-		if m == nil {
-			t.Fatal("NewMap 返回了 nil")
-		}
-		if len(m.shards) != getShardCount() {
-			t.Fatalf("NewMap 创建的 Map 的 shards 字段长度应该和 getShardCount 函数返回的数量相等，实际为 %d", len(m.shards))
-		}
-	})
-
 	t.Run("Load", func(t *testing.T) {
 		m := NewMap()
 
