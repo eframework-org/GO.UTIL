@@ -10,7 +10,7 @@ EFramework Utility for Go 提供了配置管理、任务调度、日志记录、
 ## 功能特性
 
 - [XApp](XApp/README.md) 提供了应用程序生命周期管理功能，用于控制应用程序的启动、运行和退出过程
-- [XCollect](XCollect/README.md) 提供了一组集合类型数据的工具函数集，支持泛型和函数查询
+- [XCollect](XCollect/README.md) 提供了一组集合类型数据的工具函数集，包括数组操作工具和线程安全的字典工具
 - [XEnv](XEnv/README.md) 是一个环境配置管理工具，支持多平台识别、应用配置管理、路径管理、命令行参数解析和环境变量求值等功能
 - [XEvent](XEvent/README.md) 是一个轻量级的事件管理器，支持多重监听、单次回调和批量通知等功能
 - [XFile](XFile/README.md) 提供了一组实用的文件系统操作工具函数，支持文件读写和路径处理等功能

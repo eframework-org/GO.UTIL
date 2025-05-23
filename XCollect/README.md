@@ -5,18 +5,16 @@
 [![Report](https://goreportcard.com/badge/github.com/eframework-org/GO.UTIL)](https://goreportcard.com/report/github.com/eframework-org/GO.UTIL)
 [![DeepWiki](https://img.shields.io/badge/DeepWiki-Explore-blue)](https://deepwiki.com/eframework-org/GO.UTIL)
 
-XCollect 提供了一组集合类型数据的工具函数集，支持泛型和函数查询。
+XCollect 提供了一组集合类型数据的工具函数集，包括数组操作工具和线程安全的字典工具。
 
 ## 功能特性
 
-- 数组操作：查找、插入、删除、追加等基础操作
-- 泛型支持：支持任意可比较类型的数据操作
-- 函数查询：支持使用函数作为查找和过滤条件
-- 类型安全：编译时类型检查，避免运行时错误
+- 数组工具：泛型数组操作函数，支持查找、删除、插入等常用功能，适用于任意可比较类型
+- 字典工具：线程安全的泛型 Map，支持高效的读写操作和顺序/并发遍历，兼具性能与易用性
 
 ## 使用手册
 
-### 1. 数组查找
+### 1. 数组工具
 
 #### 1.1 按值查找
 使用 `Index` 和 `Contains` 函数进行精确值匹配：
@@ -31,7 +29,7 @@ idx := XCollect.Index(arr, 3)        // 返回 2
 exists := XCollect.Contains(arr, 3)   // 返回 true
 ```
 
-#### 1.2 按条件查找
+#### 1.2 条件查找
 使用函数作为查找条件，实现灵活的查找逻辑：
 
 ```go
@@ -41,9 +39,7 @@ idx := XCollect.Index(arr, func(x int) bool {
 })                                    // 返回 1（元素2的索引）
 ```
 
-### 2. 数组修改
-
-#### 2.1 元素删除
+#### 1.3 元素删除
 提供两种删除方式：按值删除和按索引删除：
 
 ```go
@@ -54,7 +50,7 @@ arr = XCollect.Remove(arr, 3)         // 返回 [1, 2, 4, 5]
 arr = XCollect.Delete(arr, 1)         // 返回 [1, 4, 5]
 ```
 
-#### 2.2 元素添加
+#### 1.4 元素添加
 支持在数组末尾追加或在指定位置插入元素：
 
 ```go
@@ -65,29 +61,65 @@ arr = XCollect.Append(arr, 6)         // 返回 [1, 4, 5, 6]
 arr = XCollect.Insert(arr, 1, 2)      // 返回 [1, 2, 4, 5, 6]
 ```
 
+### 2. 字典工具
+
+#### 2.1 基本操作
+
+创建和基本的增删改查操作：
+
+```go
+// 创建一个新的线程安全Map
+map := XCollect.NewMap()
+
+// 存储键值对
+map.Store("key1", 100)
+map.Store("key2", 200)
+
+// 读取值
+value, exists := map.Load("key1")  // 返回 100, true
+
+// 删除键值对
+map.Delete("key1")
+
+// 清空所有键值对
+map.Clear()
+```
+
+#### 2.2 遍历操作
+两种遍历方式，适用于不同的场景：
+
+```go
+// 基础遍历
+map.Range(func(key, value any) bool {
+    fmt.Printf("键: %v, 值: %v\n", key, value)
+    return true  // 返回false可以提前终止遍历
+})
+
+// 并发遍历（适用于大数据）
+map.RangeConcurrent(func(chunk int, key, value any) bool {
+    fmt.Printf("分片: %d, 键: %v, 值: %v\n", chunk, key, value)
+    return true  // 返回false可以提前终止所有协程的遍历
+}, func(chunk int) {
+    fmt.Printf("开始并发遍历，分片数量: %d\n", chunk)
+})
+```
+
 ## 常见问题
 
-### 1. 如何处理空数组？
-所有操作都会安全处理空数组：
-- `Index` 和 `Contains` 返回 -1 和 false
-- `Remove` 和 `Delete` 返回空数组
-- `Append` 和 `Insert` 正常工作
-
-### 2. 支持哪些数据类型？
+### 1. XCollect 数组工具函数支持哪些数据类型？
 支持所有满足 `comparable` 约束的类型，包括：
 - 基本类型：整数、浮点数、字符串等
 - 复合类型：结构体（需要可比较）、指针等
-
-### 3. 性能如何优化？
+注意：
 - 使用泛型避免接口转换开销
 - 就地修改数组减少内存分配
 - 使用 `append` 优化切片操作
 
-### 4. XCollect.Map 的性能及适用场景？
+### 2. XCollect.Map 的性能及适用场景？
 
-#### 4.1 读写操作
+#### 2.1 读写操作
 
-📊 `XCollect.Map` vs `sync.Map` 性能对照表（数据量 10000）：
+📊 `XCollect.Map` vs `sync.Map` 性能对照表（数据量 `10000`）：
 
 | Map 类型      | CPU 核数 | 操作次数 (N)  | 平均时间 (ns/op) | 内存分配 (B/op) | 分配次数 (allocs/op) |
 | ------------ | ------ | --------- | ------------ | ----------- | ---------------- |
@@ -106,13 +138,13 @@ arr = XCollect.Insert(arr, 1, 2)      // 返回 [1, 2, 4, 5, 6]
 
 数据分析：
 
-1. 性能趋势：两者都表现出良好的扩展性，CPU 核数越多，ns/op 越低，但 sync.Map 在多核下的性能提升更为显著，尤其是 8 核及以上时表现优越。
-2. 写入/读取优化差异：XCollect.Map 尽管平均性能逊于 sync.Map，但在低并发场景下（1–4 核）仍表现出较强竞争力，平均时延接近或略优。
-3. 内存与分配：两者单位操作的内存占用相同（23 B/op），sync.Map 每次操作只产生一次内存分配，而 XCollect.Map 每次产生两次分配，可能影响 GC 压力。
+1. 两者都表现出良好的扩展性，`CPU` 核数越多，`ns/op` 越低，但 `sync.Map` 在多核下的性能提升更为显著，尤其是 `8 核` 及以上时表现优越。
+2. `XCollect.Map` 尽管平均性能逊于 `sync.Map`，但在低并发场景下（`1–4 核`）仍表现出较强竞争力，平均时延接近或略优。
+3. 两者单位操作的内存占用相同（`23 B/op`），`sync.Map` 每次操作只产生一次内存分配，而 `XCollect.Map` 每次产生两次分配，可能影响 `GC` 压力。
 
-#### 4.2 遍历操作
+#### 2.2 遍历操作
 
-📊 `XCollect.Map Range` vs `XCollect.Map Concurrent Range` vs `sync.Map Range` vs `map range` 性能对照表（数据量 100000）：
+📊 `XCollect.Map Range` vs `XCollect.Map Concurrent Range` vs `sync.Map Range` vs `map range` 性能对照表（数据量 `100000`）：
 
 | Map 类型     | CPU 核数 | 操作次数 (N) | 平均时间 (ns/op) | 内存分配 (B/op) | 分配次数 (allocs/op) |
 | ----------- | ------ | -------- | ------------ | ----------- | ---------------- |
@@ -143,16 +175,16 @@ arr = XCollect.Insert(arr, 1, 2)      // 返回 [1, 2, 4, 5, 6]
 
 数据分析：
 
-1. XCollect.Map 普通遍历在全核数范围内稳定在 100μs 左右，非常稳定且零分配。
-2. XCollect.Map Concurrent Range 利用多核并发（4–8 核时效率最优），可将遍历时间降到约 41μs（~2.4 倍加速），但带来小量额外分配（每次遍历约 2KB 内存、66 次分配）。
-3. sync.Map 遍历性能极差，平均遍历耗时 超过 2ms（2000μs）。
-4. 原生 map 的遍历速度约在 500μs 水平，低于 XCollect.Map，但不支持并发安全。
+1. `XCollect.Map` 普通遍历在全核数范围内稳定在 `100μs` 左右，非常稳定且零分配。
+2. `XCollect.Map` 并发遍历利用多核并发（`4–8` 核效率最优），可将遍历时间降到约 `41μs（~2.4 倍加速）`，但带来小量额外分配（每次遍历约 `2KB` 内存、`66` 次分配）。
+3. `sync.Map` 遍历性能较差差，平均遍历耗时超过 `2ms（2000μs）`。
+4. `map` 的遍历速度约在 `500μs` 水平，低于 `Sync.Map`，但相较于 `XCollect.Map` 没有优势且不支持并发。
 
-#### 4.3 适用场景
+#### 2.3 适用场景
 
-1. 要求线程安全且高效遍历：✅ 使用 XCollect.Map 的并发遍历。
-2. 若在只读非并发场景：✅ 原生 map 仍然是极简高效的选择。
-3. ❌ sync.Map 不适合用作需要频繁遍历的数据结构。
+1. `XCollect.Map`：高并发、大数据、读多写少。
+2. `sync.Map`：高并发、数据可控、读写均衡。
+3. `map`：低并发、数据可控、读写均衡。
 
 更多问题，请查阅[问题反馈](../CONTRIBUTING.md#问题反馈)。
 

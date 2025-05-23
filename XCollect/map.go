@@ -30,7 +30,7 @@ type mapShard struct {
 	values []struct {
 		key   any
 		value any
-	} // 以切片形式存储键值对，便于顺序遍历
+	} // 以切片形式存储键值对，内存连续，索引速度更快
 }
 
 // NewMap 创建并返回一个新的 Map 实例。
@@ -268,7 +268,7 @@ func (m *Map) Clear() {
 	}
 }
 
-// Range 顺序遍历所有键值对，并调用用户提供的 process 函数。
+// Range 遍历所有键值对，并调用用户提供的 process 函数。
 // process 是处理函数，接收 key 和 value 作为参数，返回布尔值，如果 process 返回 false，则提前中断遍历。
 // 该操作是线程安全的，对每个分片使用读锁保护。
 // 注意：遍历过程中不应修改 Map 内容，否则可能导致不可预期的结果。
