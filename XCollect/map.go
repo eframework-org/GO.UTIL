@@ -65,12 +65,13 @@ func getShardCount() int {
 // 该方法在首次访问 Map 时被调用，实现延迟初始化。
 func (m *Map) initShard() {
 	shardCount := getShardCount()
-	m.shards = make([]*mapShard, shardCount)
-	m.shardMask = uint32(shardCount - 1) // 掩码用于位运算
+	shards := make([]*mapShard, shardCount)
 	// 初始化每个分片
 	for i := range shardCount {
-		m.shards[i] = &mapShard{}
+		shards[i] = &mapShard{}
 	}
+	m.shards = shards
+	m.shardMask = uint32(shardCount - 1) // 掩码用于位运算
 }
 
 // 计算键的哈希值，确定应该存储在哪个分片上。
@@ -126,11 +127,10 @@ func (m *Map) Load(key any) (value any, ok bool) {
 func (m *Map) Store(key any, value any) {
 	if m.shards == nil {
 		m.mutex.Lock()
-		defer m.mutex.Unlock()
-
 		if m.shards == nil {
 			m.initShard()
 		}
+		m.mutex.Unlock()
 	}
 
 	shard := m.getShard(key)
@@ -185,11 +185,10 @@ func (m *Map) Delete(key any) {
 func (m *Map) LoadOrStore(key any, value any) (actual any, loaded bool) {
 	if m.shards == nil {
 		m.mutex.Lock()
-		defer m.mutex.Unlock()
-
 		if m.shards == nil {
 			m.initShard()
 		}
+		m.mutex.Unlock()
 	}
 
 	shard := m.getShard(key)
@@ -219,11 +218,10 @@ func (m *Map) LoadOrStore(key any, value any) (actual any, loaded bool) {
 func (m *Map) LoadAndDelete(key any) (value any, loaded bool) {
 	if m.shards == nil {
 		m.mutex.Lock()
-		defer m.mutex.Unlock()
-
 		if m.shards == nil {
 			m.initShard()
 		}
+		m.mutex.Unlock()
 	}
 
 	shard := m.getShard(key)
