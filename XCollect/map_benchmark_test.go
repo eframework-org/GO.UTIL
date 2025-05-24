@@ -12,11 +12,11 @@ import (
 )
 
 // 基准测试：比较 XCollect.Map 和 sync.Map 的性能
-// 多核测试：go test -benchmem -bench=. -cpu=1,2,4,8,16,32
+// 多核测试可以使用命令 go test -run=^$ -bench=^BenchmarkMap$ -benchmem -cpu=1,2,4,8,16,32
 func BenchmarkMap(b *testing.B) {
 	b.Run("Mixed", func(b *testing.B) {
 		for _, count := range []int{1000, 10000} {
-			b.Run(fmt.Sprintf("XCollect.Map/Count-%d", count), func(b *testing.B) {
+			b.Run(fmt.Sprintf("XCollect.Map/%d", count), func(b *testing.B) {
 				m := NewMap()
 				// 预填充数据
 				for i := range count {
@@ -47,7 +47,7 @@ func BenchmarkMap(b *testing.B) {
 				})
 			})
 
-			b.Run(fmt.Sprintf("sync.Map/Count-%d", count), func(b *testing.B) {
+			b.Run(fmt.Sprintf("sync.Map/%d", count), func(b *testing.B) {
 				var m sync.Map
 				// 预填充数据
 				for i := range count {
@@ -82,7 +82,7 @@ func BenchmarkMap(b *testing.B) {
 
 	b.Run("Range", func(b *testing.B) {
 		for _, count := range []int{1000, 10000, 100000} {
-			b.Run(fmt.Sprintf("XCollect.Map/Count-%d", count), func(b *testing.B) {
+			b.Run(fmt.Sprintf("XCollect.Map/%d", count), func(b *testing.B) {
 				m := NewMap()
 				for i := range count {
 					m.Store(strconv.Itoa(i), i)
@@ -96,7 +96,7 @@ func BenchmarkMap(b *testing.B) {
 				}
 			})
 
-			b.Run(fmt.Sprintf("XCollect.Map/Concurrent/Count-%d", count), func(b *testing.B) {
+			b.Run(fmt.Sprintf("XCollect.Map/Concurrent/%d", count), func(b *testing.B) {
 				m := NewMap()
 				for i := range count {
 					m.Store(strconv.Itoa(i), i)
@@ -110,7 +110,7 @@ func BenchmarkMap(b *testing.B) {
 				}
 			})
 
-			b.Run(fmt.Sprintf("sync.Map/Count-%d", count), func(b *testing.B) {
+			b.Run(fmt.Sprintf("sync.Map/%d", count), func(b *testing.B) {
 				var m sync.Map
 				for i := range count {
 					m.Store(strconv.Itoa(i), i)
@@ -124,7 +124,7 @@ func BenchmarkMap(b *testing.B) {
 				}
 			})
 
-			b.Run(fmt.Sprintf("map/Count-%d", count), func(b *testing.B) {
+			b.Run(fmt.Sprintf("map/%d", count), func(b *testing.B) {
 				m := make(map[string]int)
 
 				for i := range count {
