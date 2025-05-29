@@ -8,8 +8,11 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/eframework-org/GO.UTIL/XString"
 )
 
 var (
@@ -53,7 +56,6 @@ type envEval struct{}
 // 示例：
 //
 //	${Env.APP_ENV} -> "production"
-//	${Env.DB_HOST:-localhost} -> "localhost"（如果 DB_HOST 未设置）
 func (ev *envEval) Eval(input string) string {
 	pattern := regexp.MustCompile(`\$\{Env\.([^}]+?)\}`)
 	visited := make(map[string]bool)
@@ -102,6 +104,8 @@ func (ev *envEval) Eval(input string) string {
 			value = Author()
 		} else if key == "Secret" {
 			value = Secret()
+		} else if key == "NumCPU" {
+			value = XString.ToString(runtime.NumCPU())
 		} else {
 			value = GetArg(key)
 		}

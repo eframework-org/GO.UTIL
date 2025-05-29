@@ -6,7 +6,10 @@ package XLoom
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/eframework-org/GO.UTIL/XLog"
@@ -30,6 +33,7 @@ var (
 	loomInitMu        sync.Mutex            // 初始化互斥锁，用于保护初始化过程
 	loomPause         []bool                // 线程暂停状态，true 表示暂停，false 表示运行
 	loomPauseSig      []chan bool           // 线程暂停信号，用于通知线程暂停状态的变化
+	loomSetupSig      []chan os.Signal      // 线程设置信号，用于接收退出信号
 	loomCloseSig      []chan bool           // 线程退出信号
 	loomCloseWait     sync.WaitGroup        // 等待所有处理器完成
 	loomIDMap         = make(map[int64]int) // 线程映射表，用于存储 goroutine ID 到 loom ID 的映射关系
@@ -97,6 +101,7 @@ func setup(prefs XPrefs.IBase) {
 	loomCount = count
 
 	loomTask = make([]chan func(), count)
+	loomSetupSig = make([]chan os.Signal, count)
 	loomCloseSig = make([]chan bool, count)
 	loomPause = make([]bool, count)
 	loomPauseSig = make([]chan bool, count)
@@ -113,6 +118,7 @@ func setup(prefs XPrefs.IBase) {
 
 	for i := range count {
 		loomTask[i] = make(chan func(), queue)
+		loomSetupSig[i] = make(chan os.Signal, 1)
 		loomCloseSig[i] = make(chan bool, 1)
 		loomPauseSig[i] = make(chan bool, 1)
 	}
@@ -144,6 +150,8 @@ func setup(prefs XPrefs.IBase) {
 
 		doneOnce := sync.Once{}
 		RunAsyncT1(func(pid int) {
+			setupSig := loomSetupSig[i]
+			signal.Notify(setupSig, syscall.SIGTERM, syscall.SIGINT)
 			pauseSig := loomPauseSig[i]
 			closeSig := loomCloseSig[i]
 
@@ -186,6 +194,13 @@ func setup(prefs XPrefs.IBase) {
 					case <-closeSig:
 						XLog.Notice("XLoom.Loop(%v): receive signal of close.", pid)
 						return
+					case sig, ok := <-setupSig:
+						if ok {
+							XLog.Notice("XLoom.Loop(%v): receive signal of %v.", i, sig.String())
+						} else {
+							XLog.Notice("XLoom.Loop(%v): channel of signal is closed.", i)
+						}
+						return
 					case <-quit.GetQuitChannel():
 						XLog.Notice("XLoom.Loop(%v): receive signal of quit.", pid)
 						return
@@ -225,6 +240,13 @@ func setup(prefs XPrefs.IBase) {
 						XLog.Notice("XLoom.Loop(%v): receive signal of pause(%v).", pid, val)
 					case <-closeSig:
 						XLog.Notice("XLoom.Loop(%v): receive signal of close.", pid)
+						return
+					case sig, ok := <-setupSig:
+						if ok {
+							XLog.Notice("XLoom.Loop(%v): receive signal of %v.", i, sig.String())
+						} else {
+							XLog.Notice("XLoom.Loop(%v): channel of signal is closed.", i)
+						}
 						return
 					case <-quit.GetQuitChannel():
 						XLog.Notice("XLoom.Loop(%v): receive signal of quit.", pid)

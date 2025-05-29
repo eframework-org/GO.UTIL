@@ -6,14 +6,15 @@ package XEnv
 
 import (
 	"os"
+	"runtime"
 	"sync"
 	"testing"
 
+	"github.com/eframework-org/GO.UTIL/XString"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestVarsEval(t *testing.T) {
-	// Save original args and env
 	originalArgs := os.Args
 	originalEnv := os.Getenv("TEST_VAR")
 
@@ -94,14 +95,75 @@ func TestVarsEval(t *testing.T) {
 			input:    "test${Env.empty}end",
 			expected: "test${Env.empty}(Unknown)end",
 		},
+		{
+			input:    "${Env.LocalPath}",
+			expected: LocalPath(),
+		},
+		{
+			input:    "${Env.AssetPath}",
+			expected: AssetPath(),
+		},
+		{
+			input:    "${Env.UserName}",
+			expected: PrefsAuthorDefault,
+		},
+		{
+			input:    "${Env.Platform}",
+			expected: Platform(),
+		},
+		{
+			input:    "${Env.App}",
+			expected: App(),
+		},
+		{
+			input:    "${Env.Mode}",
+			expected: Mode(),
+		},
+		{
+			input:    "${Env.Solution}",
+			expected: Solution(),
+		},
+		{
+			input:    "${Env.Project}",
+			expected: Project(),
+		},
+		{
+			input:    "${Env.Product}",
+			expected: Product(),
+		},
+		{
+			input:    "${Env.Channel}",
+			expected: Channel(),
+		},
+		{
+			input:    "${Env.Version}",
+			expected: Version(),
+		},
+		{
+			input:    "${Env.Author}",
+			expected: Author(),
+		},
+		{
+			input:    "${Env.Secret}",
+			expected: Secret(),
+		},
+		{
+			input:    "${Env.NumCPU}",
+			expected: XString.ToString(runtime.NumCPU()),
+		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Reset state for each test
+		name := tt.name
+		if name == "" {
+			name = tt.input
+		}
+		t.Run(name, func(t *testing.T) {
 			argsCache = nil
 			argsCacheInit = sync.Once{}
-			tt.setup()
+			if tt.setup != nil {
+				tt.setup()
+			}
 
 			result := Vars().Eval(tt.input)
 			assert.Equal(t, tt.expected, result)
