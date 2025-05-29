@@ -196,9 +196,9 @@ func setup(prefs XPrefs.IBase) {
 						return
 					case sig, ok := <-setupSig:
 						if ok {
-							XLog.Notice("XLoom.Loop.Setup(%v): receive signal of %v.", i, sig.String())
+							XLog.Notice("XLoom.Loop(%v): receive signal of %v.", i, sig.String())
 						} else {
-							XLog.Notice("XLoom.Loop.Setup(%v): channel of signal is closed.", i)
+							XLog.Notice("XLoom.Loop(%v): channel of signal is closed.", i)
 						}
 						return
 					case <-quit.GetQuitChannel():
@@ -243,9 +243,9 @@ func setup(prefs XPrefs.IBase) {
 						return
 					case sig, ok := <-setupSig:
 						if ok {
-							XLog.Notice("XLoom.Loop.Setup(%v): receive signal of %v.", i, sig.String())
+							XLog.Notice("XLoom.Loop(%v): receive signal of %v.", i, sig.String())
 						} else {
-							XLog.Notice("XLoom.Loop.Setup(%v): channel of signal is closed.", i)
+							XLog.Notice("XLoom.Loop(%v): channel of signal is closed.", i)
 						}
 						return
 					case <-quit.GetQuitChannel():
