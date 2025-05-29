@@ -506,7 +506,7 @@ func TestMetaConcurrency(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Add(goroutines)
 
-		for i := 0; i < goroutines; i++ {
+		for range goroutines {
 			go func() {
 				defer wg.Done()
 				// 并发访问所有方法
