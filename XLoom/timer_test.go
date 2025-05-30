@@ -5,19 +5,18 @@
 package XLoom
 
 import (
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/eframework-org/GO.UTIL/XPrefs"
+	"github.com/eframework-org/GO.UTIL/XTime"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTimer(t *testing.T) {
 	setup(XPrefs.New().Set(prefsCount, 2).Set(prefsStep, 10).Set(prefsQueue, 1000))
 
-	t.Run("Timer Pool", func(t *testing.T) {
+	t.Run("Pool", func(t *testing.T) {
 		// 测试定时器对象池
 		timer1 := timerPool.Get().(*timer)
 		assert.NotNil(t, timer1)
@@ -30,107 +29,69 @@ func TestTimer(t *testing.T) {
 		assert.Nil(t, timer2.callback)
 	})
 
-	t.Run("SetTimeout Basic", func(t *testing.T) {
-		var executed int32
+	t.Run("Timeout", func(t *testing.T) {
 		done := make(chan struct{})
-
-		// 在处理器 0 上设置一个超时调用
-		id := SetTimeout(func() {
-			atomic.AddInt32(&executed, 1)
+		tm := XTime.GetMillisecond()
+		dt := 0
+		tm1 := SetTimeout(func() {
+			dt = XTime.GetMillisecond() - tm
 			close(done)
-		}, 50, 0)
+		}, 500, 0)
 
-		assert.Greater(t, id, 0, "Timer ID should be positive")
+		clear := true
+		tm2 := SetTimeout(func() { clear = false }, 500, 0)
+		ClearTimeout(tm2, 0)
 
 		select {
 		case <-done:
-			assert.Equal(t, int32(1), atomic.LoadInt32(&executed))
 		case <-time.After(time.Second):
-			t.Fatal("Timeout did not execute in time")
+			t.Fatal("定时器回调超时")
 		}
+
+		assert.Greater(t, tm1, 0, "返回的定时器 ID 应该为正数")
+		assert.GreaterOrEqual(t, dt, 500, "等待时间应当大于等于 500 毫秒")
+		assert.Equal(t, true, clear, "清除的定时器不应当被回调")
+
+		assert.Equal(t, -1, SetTimeout(nil, 100, 0), "传入空的回调函数应当返回 -1")
+		assert.Equal(t, -1, SetTimeout(func() {}, -1, 0), "传入小于零的超时时长应当返回 -1")
+		assert.Equal(t, -1, SetTimeout(func() {}, 100, -1), "传入非法的 loomID 应当返回 -1")
+		assert.Equal(t, -1, SetTimeout(func() {}, 100, 999), "传入越界的 loomID 应当返回 -1")
 	})
 
-	t.Run("SetTimeout Invalid", func(t *testing.T) {
-		// 测试无效参数
-		assert.Equal(t, -1, SetTimeout(nil, 100, 0), "Nil callback should return -1")
-		assert.Equal(t, -1, SetTimeout(func() {}, -1, 0), "Negative timeout should return -1")
-		assert.Equal(t, -1, SetTimeout(func() {}, 100, -1), "Invalid PID should return -1")
-		assert.Equal(t, -1, SetTimeout(func() {}, 100, 999), "Out of range PID should return -1")
-	})
-
-	t.Run("SetInterval Basic", func(t *testing.T) {
-		var count int32
+	t.Run("Interval", func(t *testing.T) {
+		count := 0
 		done := make(chan struct{})
 
-		// 设置一个间歇调用
-		id := SetInterval(func() {
-			if atomic.AddInt32(&count, 1) >= 3 {
+		tm := XTime.GetMillisecond()
+		dt := 0
+		tm1 := 0
+		tm1 = SetInterval(func() {
+			count++
+			if count >= 3 {
+				dt = XTime.GetMillisecond() - tm
+				ClearInterval(tm1, 1)
 				close(done)
 			}
-		}, 50, 0)
+			panic("test interval panic") // 触发 panic，下一个周期的定时器应当继续执行
+		}, 200, 1)
 
-		assert.Greater(t, id, 0, "Timer ID should be positive")
+		clear := true
+		tm2 := SetInterval(func() { clear = false }, 200, 1)
+		ClearInterval(tm2, 1)
 
 		select {
 		case <-done:
-			assert.GreaterOrEqual(t, atomic.LoadInt32(&count), int32(3))
 		case <-time.After(time.Second):
-			t.Fatal("Interval did not execute enough times")
+			t.Fatal("定时器回调超时")
 		}
 
-		// 清除间歇调用
-		ClearInterval(id, 0)
-	})
+		assert.Greater(t, tm1, 0, "返回的定时器 ID 应该为正数")
+		assert.GreaterOrEqual(t, dt, 600, "等待时间应当大于等于 600 毫秒")
+		assert.Equal(t, true, clear, "清除的定时器不应当被回调")
 
-	t.Run("SetInterval Invalid", func(t *testing.T) {
-		// 测试无效参数
-		assert.Equal(t, -1, SetInterval(nil, 100, 0), "Nil callback should return -1")
-		assert.Equal(t, -1, SetInterval(func() {}, -1, 0), "Negative interval should return -1")
-		assert.Equal(t, -1, SetInterval(func() {}, 100, -1), "Invalid PID should return -1")
-		assert.Equal(t, -1, SetInterval(func() {}, 100, 999), "Out of range PID should return -1")
-	})
-
-	t.Run("Timer Panic Recovery", func(t *testing.T) {
-		var executed int32
-
-		// 测试定时器中的 panic 恢复
-		SetTimeout(func() {
-			atomic.AddInt32(&executed, 1)
-			panic("test panic")
-		}, 50, 0)
-
-		// 等待足够时间让定时器执行
-		time.Sleep(100 * time.Millisecond)
-		assert.Equal(t, int32(1), atomic.LoadInt32(&executed))
-	})
-
-	t.Run("Timer Clear", func(t *testing.T) {
-		var executed int32
-
-		// 设置一个定时器并立即清除
-		id := SetTimeout(func() {
-			atomic.AddInt32(&executed, 1)
-		}, 50, 0)
-
-		ClearTimeout(id, 0)
-
-		// 等待一段时间确保定时器被清除
-		time.Sleep(100 * time.Millisecond)
-		assert.Equal(t, int32(0), atomic.LoadInt32(&executed))
-	})
-
-	t.Run("Timer Update", func(t *testing.T) {
-		// 测试定时器更新逻辑
-		var wg sync.WaitGroup
-		wg.Add(1)
-
-		SetTimeout(func() {
-			defer wg.Done()
-		}, 50, 0)
-
-		// 手动触发更新
-		updateTimer(0, 60)
-
-		wg.Wait()
+		assert.Equal(t, -1, SetInterval(nil, 100, 0), "传入空的回调函数应当返回 -1")
+		assert.Equal(t, -1, SetInterval(func() {}, -1, 0), "传入小于零的超时时长应当返回 -1")
+		assert.Equal(t, -1, SetInterval(func() {}, 100, -1), "传入非法的 loomID 应当返回 -1")
+		assert.Equal(t, -1, SetInterval(func() {}, 100, 999), "传入越界的 loomID 应当返回 -1")
 	})
 }
