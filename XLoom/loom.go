@@ -174,6 +174,7 @@ func setup(prefs XPrefs.IBase) {
 			})
 
 			lastTime := XTime.GetMillisecond()
+			metricsTime := 0
 			frameCount := 0
 			queryCount := 0
 
@@ -208,11 +209,13 @@ func setup(prefs XPrefs.IBase) {
 				} else {
 					nowTime := XTime.GetMillisecond()
 					deltaTime := nowTime - lastTime
+					lastTime = nowTime
 
-					if deltaTime >= 1000 {
-						fps := float64(frameCount) * 1000 / float64(deltaTime)
+					metricsTime += deltaTime
+					if metricsTime >= 1000 {
+						fps := float64(frameCount) * 1000 / float64(metricsTime)
 						ifps := int(fps)
-						qps := float64(queryCount) * 1000 / float64(deltaTime)
+						qps := float64(queryCount) * 1000 / float64(metricsTime)
 						iqps := int(qps)
 						loomFPS[pid] = ifps
 						loomFPSGauges[pid].Set(fps)
@@ -220,7 +223,7 @@ func setup(prefs XPrefs.IBase) {
 						loomQPSGauges[pid].Set(qps)
 						frameCount = 0
 						queryCount = 0
-						lastTime = nowTime
+						metricsTime = 0
 					}
 
 					select {

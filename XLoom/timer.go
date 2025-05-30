@@ -80,9 +80,10 @@ func updateTimer(pid int, delta int) {
 		for _, timer := range allTimers[pid] {
 			timer.tick -= delta
 			if timer.panic {
-				if timer.repeat { // interval发生panic不取消该定时器
+				if timer.repeat { // interval 发生 panic 不取消定时器
 					timer.panic = false
-				} else { // timeout发生panic则直接移除
+					timer.tick = timer.period
+				} else { // timeout 发生 panic 则直接移除
 					delTimersLk[pid].Lock()
 					delTimers[pid] = append(delTimers[pid], timer.id)
 					delTimersLk[pid].Unlock()
