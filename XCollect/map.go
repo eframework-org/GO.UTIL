@@ -18,6 +18,7 @@ import (
 // 适用于高并发读写场景，大数据遍历性能优于标准库的 sync.Map。
 type Map struct {
 	mutex     sync.Mutex
+	inited    atomic.Uint32
 	shards    []*mapShard // 存储多个分片
 	shardMask uint32      // 分片索引掩码
 }
@@ -64,14 +65,24 @@ func getShardCount() int {
 // 根据 CPU 数量确定分片数，并创建相应数量的分片。
 // 该方法在首次访问 Map 时被调用，实现延迟初始化。
 func (m *Map) initShard() {
-	shardCount := getShardCount()
-	shards := make([]*mapShard, shardCount)
-	// 初始化每个分片
-	for i := range shardCount {
-		shards[i] = &mapShard{}
+	if m.inited.Load() == 0 {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+
+		if m.inited.Load() != 0 {
+			return
+		}
+
+		shardCount := getShardCount()
+		shards := make([]*mapShard, shardCount)
+		// 初始化每个分片
+		for i := range shardCount {
+			shards[i] = &mapShard{}
+		}
+		m.shards = shards
+		m.shardMask = uint32(shardCount - 1) // 掩码用于位运算
+		m.inited.Store(1)
 	}
-	m.shards = shards
-	m.shardMask = uint32(shardCount - 1) // 掩码用于位运算
 }
 
 // 计算键的哈希值，确定应该存储在哪个分片上。
@@ -104,7 +115,7 @@ func (m *Map) getShard(key any) *mapShard {
 // 如果 key 存在，则返回对应的值和 true，否则返回 nil 和 false。
 // 该操作是线程安全的，使用读锁保护。
 func (m *Map) Load(key any) (value any, ok bool) {
-	if m.shards == nil {
+	if m.inited.Load() == 0 {
 		return nil, false
 	}
 
@@ -125,13 +136,7 @@ func (m *Map) Load(key any) (value any, ok bool) {
 // 如果 key 已存在，则更新其值；否则插入新的键值对。
 // 该操作是线程安全的，使用写锁保护。
 func (m *Map) Store(key any, value any) {
-	if m.shards == nil {
-		m.mutex.Lock()
-		if m.shards == nil {
-			m.initShard()
-		}
-		m.mutex.Unlock()
-	}
+	m.initShard()
 
 	shard := m.getShard(key)
 	shard.mutex.Lock()
@@ -155,7 +160,7 @@ func (m *Map) Store(key any, value any) {
 // 若 key 存在，删除并重排内部切片以保持数据紧凑；否则不做处理。
 // 该操作是线程安全的，使用写锁保护。
 func (m *Map) Delete(key any) {
-	if m.shards == nil {
+	if m.inited.Load() == 0 {
 		return
 	}
 
@@ -183,13 +188,7 @@ func (m *Map) Delete(key any) {
 // loaded 表示 key 已存在，false 表示 key 不存在并已写入新值。
 // 该操作是线程安全的，使用写锁保护。
 func (m *Map) LoadOrStore(key any, value any) (actual any, loaded bool) {
-	if m.shards == nil {
-		m.mutex.Lock()
-		if m.shards == nil {
-			m.initShard()
-		}
-		m.mutex.Unlock()
-	}
+	m.initShard()
 
 	shard := m.getShard(key)
 	shard.mutex.Lock()
@@ -216,13 +215,7 @@ func (m *Map) LoadOrStore(key any, value any) (actual any, loaded bool) {
 // loaded 表示 key 是否存在，true 表示 key 存在并已删除，false 表示 key 不存在。
 // 该操作是线程安全的，使用写锁保护。
 func (m *Map) LoadAndDelete(key any) (value any, loaded bool) {
-	if m.shards == nil {
-		m.mutex.Lock()
-		if m.shards == nil {
-			m.initShard()
-		}
-		m.mutex.Unlock()
-	}
+	m.initShard()
 
 	shard := m.getShard(key)
 	shard.mutex.Lock()
@@ -251,7 +244,7 @@ func (m *Map) LoadAndDelete(key any) (value any, loaded bool) {
 // 该方法会重置所有分片的数据，但保留分片结构，适用于需要重用 Map 的场景。
 // 该操作是线程安全的，对每个分片使用写锁保护。
 func (m *Map) Clear() {
-	if m.shards == nil {
+	if m.inited.Load() == 0 {
 		return
 	}
 
@@ -271,7 +264,7 @@ func (m *Map) Clear() {
 // 该操作是线程安全的，对每个分片使用读锁保护。
 // 注意：遍历过程中不应修改 Map 内容，否则可能导致不可预期的结果。
 func (m *Map) Range(process func(key any, value any) bool) {
-	if m.shards == nil || process == nil {
+	if m.inited.Load() == 0 || process == nil {
 		return
 	}
 
@@ -293,7 +286,7 @@ func (m *Map) Range(process func(key any, value any) bool) {
 // 该操作是线程安全的，对每个分片使用读锁保护，适用于需要并行处理大量数据的场景，可显著提高处理速度。
 // 注意：遍历过程中不应修改 Map 内容，否则可能导致不可预期的结果。
 func (m *Map) RangeConcurrent(process func(chunk int, key any, value any) bool, worker ...func(int)) {
-	if m.shards == nil || process == nil {
+	if m.inited.Load() == 0 || process == nil {
 		return
 	}
 
