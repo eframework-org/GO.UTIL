@@ -40,11 +40,6 @@ func (app *MockApp) Stop(wg *sync.WaitGroup) {
 }
 
 func TestRunAndQuit(t *testing.T) {
-	// 替换退出函数以避免 os.Exit
-	originalExitFunc := exitFunc
-	exitFunc = func(code int) {}
-	defer func() { exitFunc = originalExitFunc }()
-
 	mockApp := &MockApp{}
 	done := make(chan struct{})
 

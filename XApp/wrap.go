@@ -18,7 +18,6 @@ var (
 	shared   IBase
 	runOnce  sync.Once
 	quitOnce sync.Once
-	exitFunc = os.Exit
 )
 
 // Shared 返回应用程序的单例实例。
@@ -58,7 +57,6 @@ func Run(app IBase) {
 		for {
 			defer func() {
 				quit.GetWaiter().Wait()
-				exitFunc(0)
 			}()
 			ch := make(chan os.Signal, 1)
 			signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT)
