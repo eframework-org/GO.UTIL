@@ -56,13 +56,13 @@ func setupTimer(num int) {
 
 // updateTimer 更新指定线成的定时器状态。
 func updateTimer(pid int, delta int) {
-	if newTimers[pid] != nil && len(newTimers[pid]) > 0 {
+	if len(newTimers[pid]) > 0 {
 		newTimersLk[pid].Lock()
 		allTimers[pid] = append(allTimers[pid], newTimers[pid]...)
 		newTimers[pid] = newTimers[pid][:0]
 		newTimersLk[pid].Unlock()
 	}
-	if delTimers[pid] != nil && len(delTimers[pid]) > 0 {
+	if len(delTimers[pid]) > 0 {
 		delTimersLk[pid].Lock()
 		for _, id := range delTimers[pid] {
 			for idx, timer := range allTimers[pid] {
