@@ -43,16 +43,6 @@ func TestFormatLog(t *testing.T) {
 	}
 }
 
-// Test UnAddr function
-func TestUnAddr(t *testing.T) {
-	input := "192.168.1.1:8080 example.com:443"
-	expected := "**.**.**.**:8080 ***.***:443"
-	result := UnAddr(input)
-	if result != expected {
-		t.Errorf("Expected %v, got %v", expected, result)
-	}
-}
-
 // Test Caller function
 func TestCaller(t *testing.T) {
 	caller := Caller(0, false)

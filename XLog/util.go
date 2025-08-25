@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -39,15 +38,6 @@ const (
 )
 
 const unknownSource = "[?]" // 未知调用源标记
-
-// 用于地址掩码的正则表达式和替换模式
-var (
-	ipPattern     = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)                   // IP地址匹配模式
-	domainPattern = regexp.MustCompile(`([a-zA-Z0-9]+(-[a-zA-Z0-9]+)*\.)+[a-zA-Z]{2,}`) // 域名匹配模式
-	portPattern   = regexp.MustCompile(`:\d+`)                                          // 端口号匹配模式
-	ipMask        = []byte("**.**.**.**")                                               // IP地址掩码
-	domainMask    = []byte("***.***")                                                   // 域名掩码
-)
 
 // formatTime 格式化时间戳为日志时间格式。
 // time 为要格式化的时间。
@@ -109,31 +99,6 @@ func formatLog(data any, args ...any) string {
 		str += strings.Repeat(" %v", len(args))
 	}
 	return fmt.Sprintf(str, args...)
-}
-
-// UnAddr 对字符串中的IP地址和域名进行掩码处理。
-// 保留端口号信息，将IP地址和域名替换为掩码。
-// input 为包含IP地址和域名的字符串。
-// 返回处理后的字符串。
-func UnAddr(input string) string {
-	inputBytes := []byte(input)
-
-	// 替换IP地址
-	inputBytes = ipPattern.ReplaceAllFunc(inputBytes, func(match []byte) []byte {
-		return ipMask
-	})
-
-	// 替换域名
-	inputBytes = domainPattern.ReplaceAllFunc(inputBytes, func(match []byte) []byte {
-		return domainMask
-	})
-
-	// 保留端口
-	inputBytes = portPattern.ReplaceAllFunc(inputBytes, func(match []byte) []byte {
-		return match
-	})
-
-	return string(inputBytes)
 }
 
 // Caller 获取调用栈信息。
