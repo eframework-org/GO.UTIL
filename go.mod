@@ -1,6 +1,6 @@
 module github.com/eframework-org/GO.UTIL
 
-go 1.25
+go 1.23
 
 require (
 	github.com/illumitacit/gostd v0.7.1
