@@ -125,7 +125,7 @@ func Trace(stack int, err any) (string, int) {
 	fmt.Fprintf(buf, "%v\n", err)
 	start := stack + 1
 	count := stack
-	fmt.Fprintf(buf, "    skip %v\n", stack)
+	fmt.Fprintf(buf, "    skip %v stack(s)\n", stack)
 	for i := start; ; i++ {
 		line := Caller(i, true)
 		if line == unknownSource {
@@ -150,20 +150,20 @@ func Elapse(stack int, callback ...func()) func() {
 			stack = 0
 		}
 		caller := Caller(stack+1, false)
-		Notice("XLog.Elapse%v: start time: %v, finish time: %v, elapsed-%vms", caller, start, end, elapse)
+		Notice("XLog.Elapse: %v elapsed=%vms (start=%v, end=%v).", caller, elapse, start, end)
 		if len(callback) == 1 {
 			callback[0]()
 		}
 	}
 }
 
-// Caught 捕获并处理panic。
+// Caught 捕获并处理异常。
 // exit 为是否在处理后退出程序。
 // handler 为可选的自定义处理函数，接收错误信息和堆栈深度。
 func Caught(exit bool, handler ...func(string, int)) {
 	if err := recover(); err != nil {
 		str, count := Trace(2, err) // 固定堆栈深度2
-		fname := XFile.PathJoin(XEnv.LocalPath(), "Panic", fmt.Sprintf("%v.panic", XTime.Format(XTime.GetTimestamp(), XTime.FormatFile)))
+		fname := XFile.PathJoin(XEnv.LocalPath(), "Panic", fmt.Sprintf("%v.log", XTime.Format(XTime.GetTimestamp(), XTime.FormatFile)))
 		XFile.HasDirectory(XFile.DirectoryName(fname), true)
 		XFile.SaveText(fname, str)
 		Critical(str)
@@ -171,7 +171,7 @@ func Caught(exit bool, handler ...func(string, int)) {
 			handler[0](str, count)
 		}
 		if exit {
-			Critical("XLog.Caught: exit caused by panic.")
+			Critical("XLog.Caught: process was terminated due to panic.")
 			quit.BroadcastShutdown()
 			quit.GetWaiter().Wait()
 			os.Exit(1)

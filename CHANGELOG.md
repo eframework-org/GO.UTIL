@@ -4,6 +4,7 @@
 ### 变更
 - 更新 petermattis/goid 库以适配 go1.25 版本
 - 移除 XLog 模块的 UnAddr 函数（不必要）
+- 修改 XLog 模块的 Panic 文件拓展名称：*.panic -> *.log
 
 ## [0.0.7] - 2025-07-08
 ### 修复
